@@ -7,7 +7,7 @@ export default function StudentFeedback() {
 
   if (!state) { navigate("/student"); return null; }
 
-  const { feedback, scoreOutOf20, starsEarned, wordCount, promptText } = state;
+  const { feedback, scoreOutOf20, starsEarned, wordCount } = state;
   const starLabel = { 1: "Good effort — keep practising!", 2: "Well done — solid work!", 3: "Excellent — outstanding writing!" };
 
   return (

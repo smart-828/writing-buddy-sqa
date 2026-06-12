@@ -177,7 +177,7 @@ export default function AdminStudentDetail() {
                 </Card>
 
                 {selectedSubmission?.id === s.id && (
-                  <Card style={{ borderTop: "none", borderTopLeftRadius: 0, borderTopRightRadius: 0, borderTop: "1px solid #f3f4f6" }}>
+                  <Card style={{ borderTopLeftRadius: 0, borderTopRightRadius: 0, borderTop: "1px solid #f3f4f6" }}>
                     <SectionLabel>Student's writing</SectionLabel>
                     <div style={{ fontSize: 14, lineHeight: 1.75, color: "#374151", whiteSpace: "pre-wrap", marginBottom: "1.5rem", background: "#f9fafb", padding: "1rem", borderRadius: 8 }}>
                       {s.response_text}
