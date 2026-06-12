@@ -1,0 +1,147 @@
+import { useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
+import { useAuth } from "../../hooks/useAuth";
+import { buildSystemPrompt } from "../../prompts/aiPrompts";
+import { saveSubmission } from "../../lib/db";
+
+const ANTHROPIC_KEY = process.env.REACT_APP_ANTHROPIC_API_KEY;
+
+export default function StudentWritingEditor() {
+  const { state } = useLocation();
+  const { profile } = useAuth();
+  const navigate = useNavigate();
+  const prompt = state?.prompt;
+
+  const [text, setText] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  const wordCount = text.trim() ? text.trim().split(/\s+/).length : 0;
+  const minWords = 50;
+  const ready = wordCount >= minWords;
+
+  async function handleSubmit() {
+    if (!ready) return;
+    setLoading(true);
+    setError("");
+    try {
+      const system = buildSystemPrompt(profile.curriculum, prompt.type);
+      const userMsg = `Writing prompt: ${prompt.prompt_text}\n\nStudent response:\n${text}`;
+
+      const res = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": ANTHROPIC_KEY,
+          "anthropic-version": "2023-06-01"
+        },
+        body: JSON.stringify({
+          model: "claude-sonnet-4-6",
+          max_tokens: 1500,
+          system,
+          messages: [{ role: "user", content: userMsg }]
+        })
+      });
+
+      if (!res.ok) throw new Error("AI feedback failed. Please try again.");
+      const data = await res.json();
+      const raw = data.content.map(b => b.text || "").join("").replace(/```json|```/g, "").trim();
+      const feedback = JSON.parse(raw);
+
+      // Normalise score to 20
+      const rawTotal = feedback.criteria.reduce((s, c) => s + c.score, 0);
+      const maxRaw = feedback.criteria.length * 5;
+      const scoreOutOf20 = Math.round((rawTotal / maxRaw) * 20);
+      const pct = rawTotal / maxRaw;
+      const starsEarned = pct >= 0.72 ? 3 : pct >= 0.44 ? 2 : 1;
+
+      const submissionId = await saveSubmission(profile.id, {
+        promptId: prompt.id,
+        responseText: text,
+        wordCount,
+        writingType: prompt.type,
+        curriculum: profile.curriculum,
+        scoreTotal: scoreOutOf20,
+        starsEarned,
+        aiFeedback: feedback
+      });
+
+      navigate(`/student/feedback/${submissionId}`, {
+        state: { feedback, scoreOutOf20, starsEarned, wordCount, promptText: prompt.prompt_text }
+      });
+    } catch (e) {
+      setError(e.message || "Something went wrong. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  if (!prompt) {
+    navigate("/student");
+    return null;
+  }
+
+  return (
+    <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", background: "#fff", fontFamily: "system-ui, sans-serif" }}>
+      {/* Top bar */}
+      <div style={{ borderBottom: "1px solid #e5e7eb", padding: "0 1.5rem", display: "flex", alignItems: "center", justifyContent: "space-between", height: 56, flexShrink: 0 }}>
+        <button onClick={() => navigate(-1)} style={{ background: "none", border: "none", fontSize: 13, color: "#6b7280", cursor: "pointer", fontFamily: "inherit" }}>
+          ← Back
+        </button>
+        <div style={{ fontSize: 13, color: wordCount < minWords ? "#f59e0b" : "#16a34a", fontWeight: 500 }}>
+          {wordCount} words {wordCount < minWords ? `(write at least ${minWords})` : "✓"}
+        </div>
+        <button
+          onClick={handleSubmit}
+          disabled={!ready || loading}
+          style={{
+            padding: "8px 20px", background: ready && !loading ? "#2563eb" : "#e5e7eb",
+            border: "none", borderRadius: 8, color: ready && !loading ? "white" : "#9ca3af",
+            fontSize: 14, fontWeight: 500, cursor: ready && !loading ? "pointer" : "not-allowed",
+            fontFamily: "inherit"
+          }}
+        >
+          {loading ? "Getting feedback…" : "Submit for feedback"}
+        </button>
+      </div>
+
+      {/* Prompt */}
+      <div style={{ padding: "1.25rem 1.5rem", background: "#f9fafb", borderBottom: "1px solid #e5e7eb", flexShrink: 0 }}>
+        <div style={{ fontSize: 12, fontWeight: 600, color: "#9ca3af", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>Your prompt</div>
+        <div style={{ fontSize: 15, color: "#111", lineHeight: 1.6 }}>{prompt.prompt_text}</div>
+      </div>
+
+      {/* Writing area */}
+      <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
+        <textarea
+          value={text}
+          onChange={e => setText(e.target.value)}
+          placeholder="Start writing here…"
+          autoFocus
+          style={{
+            flex: 1, width: "100%", padding: "1.5rem",
+            border: "none", outline: "none", resize: "none",
+            fontSize: 16, lineHeight: 1.8, color: "#111",
+            fontFamily: "Georgia, serif", boxSizing: "border-box",
+            minHeight: "calc(100vh - 200px)"
+          }}
+        />
+      </div>
+
+      {error && (
+        <div style={{ padding: "0.75rem 1.5rem", background: "#fef2f2", borderTop: "1px solid #fecaca", fontSize: 13, color: "#dc2626" }}>
+          {error}
+        </div>
+      )}
+
+      {loading && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(255,255,255,0.9)", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 16 }}>
+          <div style={{ width: 36, height: 36, border: "3px solid #e5e7eb", borderTopColor: "#2563eb", borderRadius: "50%", animation: "spin 0.7s linear infinite" }} />
+          <div style={{ fontSize: 15, color: "#374151", fontWeight: 500 }}>Reading your writing…</div>
+          <div style={{ fontSize: 13, color: "#6b7280" }}>This takes about 15 seconds</div>
+          <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+        </div>
+      )}
+    </div>
+  );
+}

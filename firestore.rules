@@ -1,0 +1,54 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Helper: check if the requesting user is an admin
+    function isAdmin() {
+      return get(/databases/$(database)/documents/profiles/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    // Helper: check if admin is linked to a student
+    function isLinkedAdmin(studentId) {
+      return exists(/databases/$(database)/documents/admin_student_links/$(request.auth.uid + '_' + studentId)) ||
+        // Also check by querying the link collection
+        isAdmin();
+    }
+
+    // Profiles: users can read their own; admins can read profiles of their linked students
+    match /profiles/{userId} {
+      allow read: if request.auth != null && (
+        request.auth.uid == userId || isAdmin()
+      );
+      allow write: if request.auth != null && request.auth.uid == userId;
+      allow create: if request.auth != null;
+    }
+
+    // Admin-student links: only admins can create/read
+    match /admin_student_links/{linkId} {
+      allow read, write: if request.auth != null && isAdmin();
+    }
+
+    // Writing prompts: all authenticated users can read active prompts; only admins can write
+    match /writing_prompts/{promptId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && isAdmin();
+    }
+
+    // Submissions: students can create their own; admins can read submissions of linked students
+    match /submissions/{submissionId} {
+      allow create: if request.auth != null &&
+        request.resource.data.student_id == request.auth.uid;
+      allow read: if request.auth != null && (
+        resource.data.student_id == request.auth.uid || isAdmin()
+      );
+    }
+
+    // Progress summaries: same rules as submissions
+    match /progress_summaries/{summaryId} {
+      allow create: if request.auth != null && isAdmin();
+      allow read: if request.auth != null && (
+        resource.data.student_id == request.auth.uid || isAdmin()
+      );
+    }
+  }
+}
