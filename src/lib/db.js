@@ -42,12 +42,11 @@ export async function getStudentPrompts(adminId, writingType) {
   const snap = await getDocs(
     query(
       collection(db, "writing_prompts"),
-      where("created_by_admin_id", "==", adminId),
-      where("is_active", "==", true),
-      where("type", "==", writingType)
+      where("created_by_admin_id", "==", adminId)
     )
   );
-  return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  const all = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  return all.filter(p => p.is_active === true && p.type === writingType);
 }
 
 export async function addPrompt(adminId, { title, promptText, type, targetSkill, hints }) {
