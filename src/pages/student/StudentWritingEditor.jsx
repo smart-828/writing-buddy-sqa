@@ -101,7 +101,7 @@ export default function StudentWritingEditor() {
       <div style={{ borderBottom: "1px solid #e5e7eb", padding: "0 1.5rem", display: "flex", alignItems: "center", justifyContent: "space-between", height: 56, flexShrink: 0, position: "sticky", top: 0, background: "white", zIndex: 10 }}>
         <button onClick={() => navigate(-1)} style={{ background: "none", border: "none", fontSize: 13, color: "#6b7280", cursor: "pointer", fontFamily: "inherit" }}>← Back</button>
         <div style={{ fontSize: 13, color: wordCount < minWords ? "#f59e0b" : "#16a34a", fontWeight: 500 }}>
-          {wordCount} words {wordCount < minWords ? `(write at least ${minWords})` : "✓"}
+          {wordCount} words {wordCount < minWords ? `— need ${minWords - wordCount} more` : "✓ Ready to submit"}
         </div>
         <button onClick={handleSubmit} disabled={!ready || loading}
           style={{
@@ -141,27 +141,8 @@ export default function StudentWritingEditor() {
           flex: 1, width: "100%", padding: "1.5rem", border: "none", outline: "none",
           resize: "none", fontSize: 16, lineHeight: 1.8, color: "#111",
           fontFamily: "Georgia, serif", boxSizing: "border-box", minHeight: "calc(100vh - 200px)",
-          paddingBottom: "4rem"
-        }} />
-      {/* Floating word count + submit at bottom */}
-      <div style={{
-        position: "fixed", bottom: 0, left: 0, right: 0,
-        background: "white", borderTop: "1px solid #e5e7eb",
-        padding: "0.75rem 1.5rem", display: "flex",
-        alignItems: "center", justifyContent: "space-between", zIndex: 10
-      }}>
-        <div style={{ fontSize: 14, color: wordCount < minWords ? "#f59e0b" : "#16a34a", fontWeight: 500 }}>
-          {wordCount} words {wordCount < minWords ? `(need ${minWords - wordCount} more)` : "✓ Ready to submit"}
-        </div>
-        <button onClick={handleSubmit} disabled={!ready || loading}
-          style={{
-            padding: "8px 20px", background: ready && !loading ? "#2563eb" : "#e5e7eb",
-            border: "none", borderRadius: 8, color: ready && !loading ? "white" : "#9ca3af",
-            fontSize: 14, fontWeight: 500, cursor: ready && !loading ? "pointer" : "not-allowed", fontFamily: "inherit"
-          }}>
-          {loading ? "Getting feedback…" : "Submit for feedback"}
-        </button>
-      </div>
+          }} />
+
 
       {error && (
         <div style={{ padding: "0.75rem 1.5rem", background: "#fef2f2", borderTop: "1px solid #fecaca", fontSize: 13, color: "#dc2626" }}>
