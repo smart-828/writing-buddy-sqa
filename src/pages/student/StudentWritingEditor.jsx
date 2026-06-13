@@ -70,6 +70,7 @@ export default function StudentWritingEditor() {
 
       const submissionId = await saveSubmission(profile.id, {
         promptId: prompt.id,
+        promptTitle: prompt.title,
         responseText: text,
         wordCount,
         writingType: prompt.type,

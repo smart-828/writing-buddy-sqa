@@ -69,12 +69,13 @@ export async function togglePrompt(promptId, isActive) {
 // ── Submissions ───────────────────────────────────────────────────────────────
 
 export async function saveSubmission(studentId, {
-  promptId, responseText, wordCount, writingType,
+  promptId, promptTitle, responseText, wordCount, writingType,
   curriculum, scoreTotal, starsEarned, aiFeedback, targetSkill
 }) {
   const ref = await addDoc(collection(db, "submissions"), {
     student_id: studentId,
     prompt_id: promptId,
+    prompt_title: promptTitle || null,
     response_text: responseText,
     word_count: wordCount,
     writing_type: writingType,
@@ -175,12 +176,9 @@ export async function getAdminForStudent(studentId) {
   try {
     const snap = await getDocs(collection(db, "admin_student_links"));
     const all = snap.docs.map(d => d.data());
-    console.log("DEBUG admin_student_links total:", all.length, "looking for studentId:", studentId);
     const link = all.find(d => d.student_id === studentId);
-    console.log("DEBUG link found:", link);
     return link ? link.admin_id : null;
   } catch(e) {
-    console.error("DEBUG getAdminForStudent error:", e.message);
     return null;
   }
 }

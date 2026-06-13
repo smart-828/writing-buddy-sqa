@@ -64,6 +64,7 @@ Rules:
 - Technical accuracy must flag every grammatical, spelling, and punctuation error found. Errors are errors regardless of whether the student is EAL or native.
 - Be specific — reference actual phrases or sentences from the student's writing.
 - Be honest — do not inflate scores. If the work is weak, say so constructively.
+- The student may have been given hints as suggestions. Do NOT penalise the student for not following the hints. Mark only what is on the page.
 
 Return ONLY valid JSON, no other text:
 {
@@ -71,7 +72,7 @@ Return ONLY valid JSON, no other text:
 ${criteriaJson}
   ],
   "explanation": "Two paragraphs to the student as 'you'. First: two or three genuine strengths with specific examples. Second: one or two clear areas to improve with a concrete suggestion for each.",
-  "sampleAnswer": "A strong 180-220 word ${writingType} response to the same prompt showing excellent technique for ${curriculumLabel}."
+  "sampleAnswer": "A strong 120-150 word ${writingType} response to the same prompt showing excellent technique for ${curriculumLabel}."
 }`;
 }
 

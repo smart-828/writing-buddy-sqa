@@ -16,37 +16,24 @@ export default function StudentPromptPicker() {
 
   useEffect(() => {
     async function load() {
-      console.log("DEBUG profile.id:", profile.id);
       const adminId = await getAdminForStudent(profile.id);
-      console.log("DEBUG adminId:", adminId);
       if (!adminId) { setLoading(false); return; }
-      const ps = await getStudentPrompts(adminId, type);
-      console.log("DEBUG prompts returned:", ps.length, ps);
-      const completed = await getCompletedPromptIds(profile.id);
+      const [ps, completed] = await Promise.all([
+        getStudentPrompts(adminId, type),
+        getCompletedPromptIds(profile.id)
+      ]);
       setPrompts(ps);
       setCompletedIds(completed);
       setLoading(false);
     }
-    if (profile?.id) {
-      console.log("DEBUG useEffect firing with profile.id:", profile.id);
-      load();
-    } else {
-      console.log("DEBUG useEffect skipped - no profile.id yet");
-    }
+    if (profile?.id) load();
   }, [type, profile?.id]);
 
   const typeLabel = type === "creative" ? "Creative writing" : "Discursive writing";
   const typeIcon  = type === "creative" ? "🖊️" : "💬";
 
-  // Sort: incomplete first, completed to bottom
-  const sorted = [...prompts].sort((a, b) => {
-    const aDone = completedIds.has(a.id) ? 1 : 0;
-    const bDone = completedIds.has(b.id) ? 1 : 0;
-    return aDone - bDone;
-  });
-
-  const incomplete = sorted.filter(p => !completedIds.has(p.id));
-  const completed  = sorted.filter(p => completedIds.has(p.id));
+  const incomplete = prompts.filter(p => !completedIds.has(p.id));
+  const completed  = prompts.filter(p => completedIds.has(p.id));
 
   return (
     <div style={{ minHeight: "100vh", background: "#f9fafb", fontFamily: "system-ui, sans-serif" }}>
@@ -68,7 +55,8 @@ export default function StudentPromptPicker() {
                 </p>
                 <div style={{ display: "grid", gap: 12, marginBottom: completed.length > 0 ? "2rem" : 0 }}>
                   {incomplete.map(p => (
-                    <PromptCard key={p.id} prompt={p} done={false} onClick={() => navigate(`/student/write/${p.id}`, { state: { prompt: p } })} />
+                    <PromptCard key={p.id} prompt={p} done={false}
+                      onClick={() => navigate(`/student/write/${p.id}`, { state: { prompt: p } })} />
                   ))}
                 </div>
               </>
@@ -81,7 +69,8 @@ export default function StudentPromptPicker() {
                 </div>
                 <div style={{ display: "grid", gap: 12 }}>
                   {completed.map(p => (
-                    <PromptCard key={p.id} prompt={p} done={true} onClick={() => navigate(`/student/write/${p.id}`, { state: { prompt: p } })} />
+                    <PromptCard key={p.id} prompt={p} done={true}
+                      onClick={() => navigate(`/student/write/${p.id}`, { state: { prompt: p } })} />
                   ))}
                 </div>
               </>
@@ -95,25 +84,44 @@ export default function StudentPromptPicker() {
 
 function PromptCard({ prompt, done, onClick }) {
   return (
-    <Card style={{ opacity: done ? 0.65 : 1, cursor: "pointer" }} onClick={onClick}>
+    <Card style={{ cursor: "pointer" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8 }}>
-        <div style={{ fontSize: 15, fontWeight: 500, color: "#111" }}>{prompt.title}</div>
+        <div style={{ fontSize: 15, fontWeight: 500, color: done ? "#6b7280" : "#111" }}>{prompt.title}</div>
         <div style={{ display: "flex", alignItems: "center", gap: 6, flexShrink: 0, marginLeft: 12 }}>
           {prompt.target_skill && <Badge color={skillColor(prompt.target_skill)}>{prompt.target_skill}</Badge>}
-          {done && <span style={{ fontSize: 13, color: "#16a34a", fontWeight: 500 }}>✓ Done</span>}
+          {done && (
+            <span style={{
+              fontSize: 12, fontWeight: 500, color: "#16a34a",
+              background: "#f0fdf4", border: "1px solid #bbf7d0",
+              borderRadius: 6, padding: "2px 8px"
+            }}>✓ Completed</span>
+          )}
         </div>
       </div>
+
       <div style={{ fontSize: 14, color: "#374151", lineHeight: 1.6, marginBottom: prompt.hints?.length ? 10 : 0 }}>
         {prompt.prompt_text}
       </div>
+
       {prompt.hints?.length > 0 && (
-        <div style={{ borderTop: "1px solid #f3f4f6", paddingTop: 10, display: "flex", flexDirection: "column", gap: 4 }}>
+        <div style={{ borderTop: "1px solid #f3f4f6", paddingTop: 10, display: "flex", flexDirection: "column", gap: 4, marginBottom: 10 }}>
+          <div style={{ fontSize: 11, fontWeight: 600, color: "#9ca3af", textTransform: "uppercase", letterSpacing: "0.05em", marginBottom: 4 }}>
+            Things to think about
+          </div>
           {prompt.hints.map((h, i) => (
             <div key={i} style={{ fontSize: 13, color: "#6b7280" }}>• {h}</div>
           ))}
+          <div style={{ fontSize: 12, color: "#9ca3af", marginTop: 2, fontStyle: "italic" }}>
+            These are suggestions only — write freely.
+          </div>
         </div>
       )}
-      {!done && <div style={{ fontSize: 13, color: "#2563eb", marginTop: 10 }}>Start writing →</div>}
+
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginTop: 4 }}>
+        <div style={{ fontSize: 13, color: "#2563eb", fontWeight: 500 }} onClick={onClick}>
+          {done ? "Write again →" : "Start writing →"}
+        </div>
+      </div>
     </Card>
   );
 }
