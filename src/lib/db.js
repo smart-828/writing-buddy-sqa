@@ -1,6 +1,6 @@
 import {
-  collection, doc, getDoc, getDocs, addDoc, updateDoc, setDoc,
-  query, where, orderBy, limit, serverTimestamp, increment, getCountFromServer
+  collection, doc, getDoc, getDocs, addDoc, updateDoc,
+  query, where, orderBy, limit, serverTimestamp, increment
 } from "firebase/firestore";
 import { db } from "./firebase";
 
