@@ -7,8 +7,7 @@ export default function StudentFeedback() {
 
   if (!state) { navigate("/student"); return null; }
 
-  const { feedback, scoreOutOf20, starsEarned, wordCount } = state;
-  const starLabel = { 1: "Good effort — keep practising!", 2: "Well done — solid work!", 3: "Excellent — outstanding writing!" };
+  const { feedback, scoreOutOf20, starsEarned, wordCount, streakBonus } = state;
 
   return (
     <div style={{ minHeight: "100vh", background: "#f9fafb", fontFamily: "system-ui, sans-serif" }}>
@@ -22,15 +21,20 @@ export default function StudentFeedback() {
 
       <div style={{ maxWidth: 680, margin: "0 auto", padding: "2rem 1.5rem" }}>
 
-        {/* Stars earned — shown first, most motivating */}
+        {/* Stars earned */}
         <Card style={{ marginBottom: "1.5rem", textAlign: "center", padding: "2rem" }}>
-          <div style={{ fontSize: 48, letterSpacing: 4, marginBottom: "0.75rem" }}>
-            {Array.from({ length: 3 }).map((_, i) => (
-              <span key={i} style={{ color: i < starsEarned ? "#f59e0b" : "#e5e7eb" }}>★</span>
-            ))}
+          <div style={{ fontSize: 52, letterSpacing: 6, marginBottom: "0.75rem" }}>
+            {"★".repeat(starsEarned)}
           </div>
-          <div style={{ fontSize: 18, fontWeight: 600, color: "#111", marginBottom: 4 }}>{starLabel[starsEarned]}</div>
+          <div style={{ fontSize: 18, fontWeight: 600, color: "#111", marginBottom: 4 }}>
+            Well done — {starsEarned} stars earned!
+          </div>
           <div style={{ fontSize: 14, color: "#6b7280" }}>Score: {scoreOutOf20}/20 · {wordCount} words written</div>
+          {streakBonus && (
+            <div style={{ marginTop: 12, display: "inline-block", background: "#fffbeb", border: "1px solid #fde68a", borderRadius: 999, padding: "6px 16px", fontSize: 13, color: "#b45309", fontWeight: 500 }}>
+              ⚡ Weekly streak bonus — +1 extra star!
+            </div>
+          )}
         </Card>
 
         {/* Criteria scores */}
@@ -64,7 +68,7 @@ export default function StudentFeedback() {
         <Card style={{ marginBottom: "1.5rem" }}>
           <SectionLabel>A sample strong answer</SectionLabel>
           <p style={{ fontSize: 13, color: "#6b7280", marginBottom: "1rem" }}>
-            This is one way a strong response to this prompt might look — not the only way, just one example.
+            This is one way a strong response might look — not the only way, just one example.
           </p>
           <div style={{ fontSize: 14, lineHeight: 1.8, color: "#374151", background: "#f9fafb", padding: "1rem", borderRadius: 8 }}>
             {feedback.sampleAnswer.split("\n\n").map((p, i) => (

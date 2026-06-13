@@ -1,9 +1,8 @@
 import {
-  collection, doc, getDoc, getDocs, addDoc, updateDoc,
-  query, where, orderBy, limit, serverTimestamp, increment
+  collection, doc, getDoc, getDocs, addDoc, updateDoc, setDoc,
+  query, where, orderBy, limit, serverTimestamp, increment, getCountFromServer
 } from "firebase/firestore";
-import { createUserWithEmailAndPassword } from "firebase/auth";
-import { db, auth } from "./firebase";
+import { db } from "./firebase";
 
 // ── Profiles ──────────────────────────────────────────────────────────────────
 
@@ -12,31 +11,8 @@ export async function getProfile(uid) {
   return snap.exists() ? { id: snap.id, ...snap.data() } : null;
 }
 
-// ── Admin: create a student account ──────────────────────────────────────────
-
-export async function createStudentAccount(adminId, { displayName, email, password, curriculum }) {
-  const credential = await createUserWithEmailAndPassword(auth, email, password);
-  const studentUid = credential.user.uid;
-
-  await updateDoc(doc(db, "profiles", studentUid), {}).catch(() => null);
-
-  const { setDoc } = await import("firebase/firestore");
-  await setDoc(doc(db, "profiles", studentUid), {
-    display_name: displayName,
-    email,
-    role: "student",
-    curriculum,
-    total_stars: 0,
-    created_at: serverTimestamp()
-  });
-
-  await addDoc(collection(db, "admin_student_links"), {
-    admin_id: adminId,
-    student_id: studentUid,
-    created_at: serverTimestamp()
-  });
-
-  return studentUid;
+export async function updateProfile(uid, data) {
+  return updateDoc(doc(db, "profiles", uid), data);
 }
 
 // ── Admin: get linked students ────────────────────────────────────────────────
@@ -47,39 +23,41 @@ export async function getLinkedStudents(adminId) {
   );
   const studentIds = linksSnap.docs.map(d => d.data().student_id);
   if (!studentIds.length) return [];
-
   const profiles = await Promise.all(studentIds.map(id => getProfile(id)));
   return profiles.filter(Boolean);
 }
 
 // ── Writing prompts ───────────────────────────────────────────────────────────
 
-export async function getPrompts({ curriculum, writingType } = {}) {
-  let q = query(collection(db, "writing_prompts"), where("is_active", "==", true));
-  const snap = await getDocs(q);
-  let prompts = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-
-  if (curriculum) {
-    prompts = prompts.filter(p => p.curriculum === curriculum || p.curriculum === "both");
-  }
-  if (writingType) {
-    prompts = prompts.filter(p => p.type === writingType);
-  }
-  return prompts;
-}
-
-export async function getAllPrompts() {
-  const snap = await getDocs(collection(db, "writing_prompts"));
+// Admin: get own prompts only
+export async function getAdminPrompts(adminId) {
+  const snap = await getDocs(
+    query(collection(db, "writing_prompts"), where("created_by_admin_id", "==", adminId))
+  );
   return snap.docs.map(d => ({ id: d.id, ...d.data() }));
 }
 
-export async function addPrompt(adminId, { title, promptText, type, curriculum }) {
+// Student: get active prompts from their linked admin
+export async function getStudentPrompts(adminId, writingType) {
+  const snap = await getDocs(
+    query(
+      collection(db, "writing_prompts"),
+      where("created_by_admin_id", "==", adminId),
+      where("is_active", "==", true),
+      where("type", "==", writingType)
+    )
+  );
+  return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+}
+
+export async function addPrompt(adminId, { title, promptText, type, targetSkill, hints }) {
   return addDoc(collection(db, "writing_prompts"), {
     created_by_admin_id: adminId,
     title,
     prompt_text: promptText,
     type,
-    curriculum,
+    target_skill: targetSkill,
+    hints,
     is_active: true,
     created_at: serverTimestamp()
   });
@@ -91,7 +69,10 @@ export async function togglePrompt(promptId, isActive) {
 
 // ── Submissions ───────────────────────────────────────────────────────────────
 
-export async function saveSubmission(studentId, { promptId, responseText, wordCount, writingType, curriculum, scoreTotal, starsEarned, aiFeedback }) {
+export async function saveSubmission(studentId, {
+  promptId, responseText, wordCount, writingType,
+  curriculum, scoreTotal, starsEarned, aiFeedback, targetSkill
+}) {
   const ref = await addDoc(collection(db, "submissions"), {
     student_id: studentId,
     prompt_id: promptId,
@@ -101,12 +82,14 @@ export async function saveSubmission(studentId, { promptId, responseText, wordCo
     curriculum,
     score_total: scoreTotal,
     stars_earned: starsEarned,
+    target_skill: targetSkill || null,
     ai_feedback: aiFeedback,
     created_at: serverTimestamp()
   });
 
   await updateDoc(doc(db, "profiles", studentId), {
-    total_stars: increment(starsEarned)
+    total_stars: increment(starsEarned),
+    last_submission_at: serverTimestamp()
   });
 
   return ref.id;
@@ -127,6 +110,41 @@ export async function getStudentSubmissions(studentId, limitCount = 50) {
 export async function getSubmission(submissionId) {
   const snap = await getDoc(doc(db, "submissions", submissionId));
   return snap.exists() ? { id: snap.id, ...snap.data() } : null;
+}
+
+// Get set of prompt IDs the student has already submitted
+export async function getCompletedPromptIds(studentId) {
+  const snap = await getDocs(
+    query(collection(db, "submissions"), where("student_id", "==", studentId))
+  );
+  return new Set(snap.docs.map(d => d.data().prompt_id));
+}
+
+// ── Weekly streak ─────────────────────────────────────────────────────────────
+
+export async function checkAndAwardStreakBonus(studentId) {
+  const now = new Date();
+  const startOfWeek = new Date(now);
+  startOfWeek.setHours(0, 0, 0, 0);
+  startOfWeek.setDate(now.getDate() - now.getDay()); // Sunday
+
+  const snap = await getDocs(
+    query(
+      collection(db, "submissions"),
+      where("student_id", "==", studentId),
+      where("created_at", ">=", startOfWeek),
+      limit(2)
+    )
+  );
+
+  // If this is exactly the first submission this week, award bonus
+  if (snap.docs.length === 1) {
+    await updateDoc(doc(db, "profiles", studentId), {
+      total_stars: increment(1)
+    });
+    return true; // bonus awarded
+  }
+  return false;
 }
 
 // ── Progress summaries ────────────────────────────────────────────────────────
@@ -150,4 +168,13 @@ export async function getLatestProgressSummary(studentId) {
     )
   );
   return snap.empty ? null : { id: snap.docs[0].id, ...snap.docs[0].data() };
+}
+
+// ── Admin link lookup ─────────────────────────────────────────────────────────
+
+export async function getAdminForStudent(studentId) {
+  const snap = await getDocs(
+    query(collection(db, "admin_student_links"), where("student_id", "==", studentId))
+  );
+  return snap.empty ? null : snap.docs[0].data().admin_id;
 }

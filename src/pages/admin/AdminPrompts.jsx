@@ -1,41 +1,108 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../hooks/useAuth";
-import { getAllPrompts, addPrompt, togglePrompt } from "../../lib/db";
+import { getAdminPrompts, addPrompt, togglePrompt } from "../../lib/db";
+import { buildPromptGeneratorSystem } from "../../prompts/aiPrompts";
 import { Card, Button, Badge, SectionLabel, EmptyState, Spinner } from "../../components/shared/UI";
+
+const ANTHROPIC_KEY = process.env.REACT_APP_ANTHROPIC_API_KEY;
+
+const SKILL_OPTIONS = [
+  { value: "content",    label: "Content and ideas" },
+  { value: "structure",  label: "Structure" },
+  { value: "expression", label: "Expression" },
+  { value: "accuracy",   label: "Technical accuracy" }
+];
+
+const skillColor = s => ({ content: "blue", structure: "purple", expression: "green", accuracy: "amber" }[s] || "gray");
+const typeColor  = t => t === "creative" ? "green" : "amber";
 
 export default function AdminPrompts() {
   const { profile } = useAuth();
   const navigate = useNavigate();
   const [prompts, setPrompts] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [adding, setAdding] = useState(false);
-  const [form, setForm] = useState({ title: "", promptText: "", type: "creative", curriculum: "both" });
+
+  // Generate mode
+  const [generating, setGenerating] = useState(false);
+  const [genForm, setGenForm] = useState({ type: "creative", targetSkill: "expression" });
+  const [generated, setGenerated] = useState([]);
+  const [selected, setSelected] = useState(new Set());
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    getAllPrompts().then(p => { setPrompts(p); setLoading(false); });
-  }, []);
+    if (profile?.id) {
+      getAdminPrompts(profile.id).then(p => { setPrompts(p); setLoading(false); });
+    }
+  }, [profile]);
 
-  async function handleAdd(e) {
-    e.preventDefault();
-    if (!form.title || !form.promptText) return;
+  async function handleGenerate() {
+    setGenerating(true);
+    setGenerated([]);
+    setSelected(new Set());
+    try {
+      const system = buildPromptGeneratorSystem(genForm.type, genForm.targetSkill, profile.curriculum || "n5_scotland");
+      const res = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": ANTHROPIC_KEY,
+          "anthropic-version": "2023-06-01"
+        },
+        body: JSON.stringify({
+          model: "claude-sonnet-4-6",
+          max_tokens: 2000,
+          system,
+          messages: [{ role: "user", content: "Generate the prompts now." }]
+        })
+      });
+      const data = await res.json();
+      const text = data.content.map(b => b.text || "").join("").replace(/```json|```/g, "").trim();
+      const parsed = JSON.parse(text);
+      setGenerated(parsed.prompts || []);
+    } catch (e) {
+      alert("Generation failed: " + e.message);
+    } finally {
+      setGenerating(false);
+    }
+  }
+
+  function toggleSelect(i) {
+    setSelected(prev => {
+      const next = new Set(prev);
+      next.has(i) ? next.delete(i) : next.add(i);
+      return next;
+    });
+  }
+
+  async function handleSaveSelected() {
+    if (!selected.size) return;
     setSaving(true);
-    await addPrompt(profile.id, form);
-    const updated = await getAllPrompts();
-    setPrompts(updated);
-    setForm({ title: "", promptText: "", type: "creative", curriculum: "both" });
-    setAdding(false);
-    setSaving(false);
+    try {
+      await Promise.all(
+        [...selected].map(i => addPrompt(profile.id, {
+          title: generated[i].title,
+          promptText: generated[i].prompt_text,
+          type: genForm.type,
+          targetSkill: genForm.targetSkill,
+          hints: generated[i].hints
+        }))
+      );
+      const updated = await getAdminPrompts(profile.id);
+      setPrompts(updated);
+      setGenerated([]);
+      setSelected(new Set());
+    } catch (e) {
+      alert("Save failed: " + e.message);
+    } finally {
+      setSaving(false);
+    }
   }
 
   async function handleToggle(id, current) {
     await togglePrompt(id, !current);
     setPrompts(p => p.map(pr => pr.id === id ? { ...pr, is_active: !current } : pr));
   }
-
-  const typeColor = t => t === "creative" ? "green" : "amber";
-  const curriculumLabel = c => ({ n5_scotland: "N5", gcse_england: "GCSE", both: "Both" }[c] || c);
 
   return (
     <div style={{ minHeight: "100vh", background: "#f9fafb", fontFamily: "system-ui, sans-serif" }}>
@@ -44,72 +111,107 @@ export default function AdminPrompts() {
           <Button small variant="ghost" onClick={() => navigate("/admin")}>← Back</Button>
           <span style={{ fontWeight: 600, color: "#111" }}>Writing prompts</span>
         </div>
-        <Button small variant="primary" onClick={() => setAdding(true)}>Add prompt</Button>
       </div>
 
       <div style={{ maxWidth: 800, margin: "0 auto", padding: "2rem 1.5rem" }}>
 
-        {adding && (
-          <Card style={{ marginBottom: "1.5rem", borderColor: "#2563eb" }}>
-            <SectionLabel>New prompt</SectionLabel>
-            <form onSubmit={handleAdd}>
-              <div style={{ marginBottom: "1rem" }}>
-                <label style={{ fontSize: 13, color: "#374151", display: "block", marginBottom: 6 }}>Title (shown to student)</label>
-                <input value={form.title} onChange={e => setForm(f => ({ ...f, title: e.target.value }))}
-                  placeholder="e.g. A moment of loneliness"
-                  style={{ width: "100%", padding: "9px 12px", border: "1px solid #d1d5db", borderRadius: 8, fontSize: 14, fontFamily: "inherit", boxSizing: "border-box", color: "#111" }} />
+        {/* Generate panel */}
+        <Card style={{ marginBottom: "1.5rem", borderColor: "#2563eb" }}>
+          <SectionLabel>Generate prompts with AI</SectionLabel>
+          <div style={{ display: "flex", gap: 12, marginBottom: "1rem", flexWrap: "wrap" }}>
+            <div style={{ flex: 1, minWidth: 160 }}>
+              <label style={{ fontSize: 13, color: "#374151", display: "block", marginBottom: 6 }}>Writing type</label>
+              <select value={genForm.type} onChange={e => setGenForm(f => ({ ...f, type: e.target.value }))}
+                style={{ width: "100%", padding: "9px 12px", border: "1px solid #d1d5db", borderRadius: 8, fontSize: 14, fontFamily: "inherit", color: "#111" }}>
+                <option value="creative">Creative writing</option>
+                <option value="discursive">Discursive writing</option>
+              </select>
+            </div>
+            <div style={{ flex: 1, minWidth: 160 }}>
+              <label style={{ fontSize: 13, color: "#374151", display: "block", marginBottom: 6 }}>Target skill</label>
+              <select value={genForm.targetSkill} onChange={e => setGenForm(f => ({ ...f, targetSkill: e.target.value }))}
+                style={{ width: "100%", padding: "9px 12px", border: "1px solid #d1d5db", borderRadius: 8, fontSize: 14, fontFamily: "inherit", color: "#111" }}>
+                {SKILL_OPTIONS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
+              </select>
+            </div>
+            <div style={{ display: "flex", alignItems: "flex-end" }}>
+              <Button variant="primary" onClick={handleGenerate} disabled={generating}>
+                {generating ? "Generating…" : "Generate 8 prompts"}
+              </Button>
+            </div>
+          </div>
+
+          {generated.length > 0 && (
+            <>
+              <div style={{ fontSize: 13, color: "#6b7280", marginBottom: "0.75rem" }}>
+                Select the prompts you want to add:
               </div>
-              <div style={{ marginBottom: "1rem" }}>
-                <label style={{ fontSize: 13, color: "#374151", display: "block", marginBottom: 6 }}>Prompt text</label>
-                <textarea value={form.promptText} onChange={e => setForm(f => ({ ...f, promptText: e.target.value }))}
-                  placeholder="e.g. Write about a moment when you felt completely alone."
-                  rows={3}
-                  style={{ width: "100%", padding: "9px 12px", border: "1px solid #d1d5db", borderRadius: 8, fontSize: 14, fontFamily: "inherit", boxSizing: "border-box", color: "#111", resize: "vertical" }} />
+              <div style={{ display: "grid", gap: 10, marginBottom: "1rem" }}>
+                {generated.map((p, i) => (
+                  <div key={i} onClick={() => toggleSelect(i)}
+                    style={{
+                      padding: "0.875rem 1rem", border: `1px solid ${selected.has(i) ? "#2563eb" : "#e5e7eb"}`,
+                      borderRadius: 8, cursor: "pointer", background: selected.has(i) ? "#eff6ff" : "white"
+                    }}>
+                    <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
+                      <div style={{
+                        width: 20, height: 20, borderRadius: 4, border: `2px solid ${selected.has(i) ? "#2563eb" : "#d1d5db"}`,
+                        background: selected.has(i) ? "#2563eb" : "white", flexShrink: 0, marginTop: 1,
+                        display: "flex", alignItems: "center", justifyContent: "center"
+                      }}>
+                        {selected.has(i) && <span style={{ color: "white", fontSize: 12 }}>✓</span>}
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: 14, fontWeight: 500, color: "#111", marginBottom: 4 }}>{p.title}</div>
+                        <div style={{ fontSize: 13, color: "#374151", marginBottom: 8 }}>{p.prompt_text}</div>
+                        <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+                          {p.hints?.map((h, hi) => (
+                            <div key={hi} style={{ fontSize: 12, color: "#6b7280" }}>• {h}</div>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
               </div>
-              <div style={{ display: "flex", gap: 12, marginBottom: "1rem" }}>
-                <div style={{ flex: 1 }}>
-                  <label style={{ fontSize: 13, color: "#374151", display: "block", marginBottom: 6 }}>Type</label>
-                  <select value={form.type} onChange={e => setForm(f => ({ ...f, type: e.target.value }))}
-                    style={{ width: "100%", padding: "9px 12px", border: "1px solid #d1d5db", borderRadius: 8, fontSize: 14, fontFamily: "inherit", color: "#111" }}>
-                    <option value="creative">Creative writing</option>
-                    <option value="discursive">Discursive writing</option>
-                  </select>
-                </div>
-                <div style={{ flex: 1 }}>
-                  <label style={{ fontSize: 13, color: "#374151", display: "block", marginBottom: 6 }}>Curriculum</label>
-                  <select value={form.curriculum} onChange={e => setForm(f => ({ ...f, curriculum: e.target.value }))}
-                    style={{ width: "100%", padding: "9px 12px", border: "1px solid #d1d5db", borderRadius: 8, fontSize: 14, fontFamily: "inherit", color: "#111" }}>
-                    <option value="both">Both (N5 + GCSE)</option>
-                    <option value="n5_scotland">N5 Scotland only</option>
-                    <option value="gcse_england">GCSE England only</option>
-                  </select>
-                </div>
-              </div>
-              <div style={{ display: "flex", gap: 10 }}>
-                <Button variant="primary" disabled={saving}>{saving ? "Saving…" : "Save prompt"}</Button>
-                <Button onClick={() => setAdding(false)}>Cancel</Button>
-              </div>
-            </form>
-          </Card>
-        )}
+              <Button variant="primary" onClick={handleSaveSelected} disabled={!selected.size || saving}>
+                {saving ? "Saving…" : `Add ${selected.size} selected prompt${selected.size !== 1 ? "s" : ""}`}
+              </Button>
+            </>
+          )}
+        </Card>
+
+        {/* Existing prompts */}
+        <h3 style={{ fontSize: 15, fontWeight: 600, color: "#111", marginBottom: "1rem" }}>
+          Your prompts ({prompts.length})
+        </h3>
 
         {loading ? <Spinner /> : prompts.length === 0 ? (
-          <EmptyState icon="📋" title="No prompts yet" body="Add your first writing prompt." />
+          <EmptyState icon="📋" title="No prompts yet" body="Generate your first prompts above." />
         ) : (
           <div style={{ display: "grid", gap: 10 }}>
             {prompts.map(p => (
-              <Card key={p.id} style={{ opacity: p.is_active ? 1 : 0.6 }}>
+              <Card key={p.id} style={{ opacity: p.is_active ? 1 : 0.55 }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
                   <div style={{ flex: 1 }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6, flexWrap: "wrap" }}>
                       <span style={{ fontSize: 14, fontWeight: 500, color: "#111" }}>{p.title}</span>
                       <Badge color={typeColor(p.type)}>{p.type}</Badge>
-                      <Badge color="gray">{curriculumLabel(p.curriculum)}</Badge>
+                      {p.target_skill && <Badge color={skillColor(p.target_skill)}>{p.target_skill}</Badge>}
                       {!p.is_active && <Badge color="red">Inactive</Badge>}
                     </div>
-                    <div style={{ fontSize: 13, color: "#6b7280", lineHeight: 1.5 }}>{p.prompt_text}</div>
+                    <div style={{ fontSize: 13, color: "#374151", marginBottom: 8 }}>{p.prompt_text}</div>
+                    {p.hints?.length > 0 && (
+                      <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                        {p.hints.map((h, i) => (
+                          <div key={i} style={{ fontSize: 12, color: "#6b7280" }}>• {h}</div>
+                        ))}
+                      </div>
+                    )}
                   </div>
-                  <Button small variant={p.is_active ? "danger" : "default"} onClick={() => handleToggle(p.id, p.is_active)} style={{ marginLeft: 16, flexShrink: 0 }}>
+                  <Button small variant={p.is_active ? "danger" : "default"}
+                    onClick={() => handleToggle(p.id, p.is_active)}
+                    style={{ marginLeft: 16, flexShrink: 0 }}>
                     {p.is_active ? "Deactivate" : "Activate"}
                   </Button>
                 </div>
