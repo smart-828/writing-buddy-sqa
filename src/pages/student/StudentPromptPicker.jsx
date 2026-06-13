@@ -27,8 +27,13 @@ export default function StudentPromptPicker() {
       setCompletedIds(completed);
       setLoading(false);
     }
-    if (profile?.id) load();
-  }, [type, profile]);
+    if (profile?.id) {
+      console.log("DEBUG useEffect firing with profile.id:", profile.id);
+      load();
+    } else {
+      console.log("DEBUG useEffect skipped - no profile.id yet");
+    }
+  }, [type, profile?.id]);
 
   const typeLabel = type === "creative" ? "Creative writing" : "Discursive writing";
   const typeIcon  = type === "creative" ? "🖊️" : "💬";
