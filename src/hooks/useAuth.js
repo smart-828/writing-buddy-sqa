@@ -13,12 +13,19 @@ export function AuthProvider({ children }) {
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
+        console.log("AUTH: user signed in", firebaseUser.uid);
         setUser(firebaseUser);
-        const profileDoc = await getDoc(doc(db, "profiles", firebaseUser.uid));
-        if (profileDoc.exists()) {
-          setProfile({ id: profileDoc.id, ...profileDoc.data() });
+        try {
+          const profileDoc = await getDoc(doc(db, "profiles", firebaseUser.uid));
+          console.log("AUTH: profile exists?", profileDoc.exists(), profileDoc.data());
+          if (profileDoc.exists()) {
+            setProfile({ id: profileDoc.id, ...profileDoc.data() });
+          }
+        } catch(e) {
+          console.error("AUTH: profile fetch error", e.message);
         }
       } else {
+        console.log("AUTH: no user");
         setUser(null);
         setProfile(null);
       }
