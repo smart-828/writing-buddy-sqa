@@ -16,12 +16,13 @@ export default function StudentPromptPicker() {
 
   useEffect(() => {
     async function load() {
+      console.log("DEBUG profile.id:", profile.id);
       const adminId = await getAdminForStudent(profile.id);
+      console.log("DEBUG adminId:", adminId);
       if (!adminId) { setLoading(false); return; }
-      const [ps, completed] = await Promise.all([
-        getStudentPrompts(adminId, type),
-        getCompletedPromptIds(profile.id)
-      ]);
+      const ps = await getStudentPrompts(adminId, type);
+      console.log("DEBUG prompts returned:", ps.length, ps);
+      const completed = await getCompletedPromptIds(profile.id);
       setPrompts(ps);
       setCompletedIds(completed);
       setLoading(false);
