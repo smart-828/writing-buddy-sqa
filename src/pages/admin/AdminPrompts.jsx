@@ -42,7 +42,7 @@ export default function AdminPrompts() {
     setSelected(new Set());
     try {
       const count = Math.min(Math.max(parseInt(genForm.count) || 8, 1), 20);
-      const existingTitles = prompts.map(p => p.title);
+      const existingTitles = prompts.map(p => p.title + ': ' + p.prompt_text);
       const system = buildPromptGeneratorSystem(genForm.type, genForm.targetSkill, profile.curriculum || "n5_scotland", count, existingTitles);
       const res = await fetch("https://api.anthropic.com/v1/messages", {
         method: "POST",

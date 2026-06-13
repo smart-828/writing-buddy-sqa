@@ -111,7 +111,7 @@ Return ONLY valid JSON, no other text:
 
 Generate exactly ${count} prompts. Topics should be relatable to a teenager: school, family, friendship, technology, sport, the future, fairness, identity. Avoid obscure cultural references.
 
-${existingTitles.length > 0 ? 'IMPORTANT: The following prompt titles already exist and must NOT be repeated or closely paraphrased. Every new prompt must be on a distinctly different topic:\n' + existingTitles.map((t, i) => (i + 1) + '. ' + t).join('\n') : ''}`;
+${existingTitles.length > 0 ? 'STRICT RULE — AVOID THESE TOPICS COMPLETELY: The following prompts already exist. You must NOT use the same title, the same theme, or even a closely related theme. If an existing prompt is about belonging, do not write about fitting in, standing out, being different, or feeling like an outsider — these are the same theme with different words. Each new prompt must be about a genuinely different life experience or topic that is not covered by any existing prompt.\n\nExisting prompts to avoid:\n' + existingTitles.map((t, i) => (i + 1) + '. ' + t).join('\n') + '\n\nIf you cannot generate ' + count + ' genuinely different prompts, generate fewer rather than repeating a theme.' : ''}`;
 }
 
 // ── AI progress summary ───────────────────────────────────────────────────────
