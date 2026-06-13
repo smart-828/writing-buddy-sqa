@@ -25,7 +25,7 @@ export default function AdminPrompts() {
 
   // Generate mode
   const [generating, setGenerating] = useState(false);
-  const [genForm, setGenForm] = useState({ type: "creative", targetSkill: "expression" });
+  const [genForm, setGenForm] = useState({ type: "creative", targetSkill: "expression", count: "8" });
   const [generated, setGenerated] = useState([]);
   const [selected, setSelected] = useState(new Set());
   const [saving, setSaving] = useState(false);
@@ -41,7 +41,8 @@ export default function AdminPrompts() {
     setGenerated([]);
     setSelected(new Set());
     try {
-      const system = buildPromptGeneratorSystem(genForm.type, genForm.targetSkill, profile.curriculum || "n5_scotland");
+      const count = Math.min(Math.max(parseInt(genForm.count) || 8, 1), 20);
+      const system = buildPromptGeneratorSystem(genForm.type, genForm.targetSkill, profile.curriculum || "n5_scotland", count);
       const res = await fetch("https://api.anthropic.com/v1/messages", {
         method: "POST",
         headers: {
@@ -135,9 +136,17 @@ export default function AdminPrompts() {
                 {SKILL_OPTIONS.map(s => <option key={s.value} value={s.value}>{s.label}</option>)}
               </select>
             </div>
+            <div style={{ minWidth: 80 }}>
+              <label style={{ fontSize: 13, color: "#374151", display: "block", marginBottom: 6 }}>How many</label>
+              <input
+                type="number" min="1" max="20" value={genForm.count}
+                onChange={e => setGenForm(f => ({ ...f, count: e.target.value }))}
+                style={{ width: "100%", padding: "9px 12px", border: "1px solid #d1d5db", borderRadius: 8, fontSize: 14, fontFamily: "inherit", color: "#111" }}
+              />
+            </div>
             <div style={{ display: "flex", alignItems: "flex-end" }}>
               <Button variant="primary" onClick={handleGenerate} disabled={generating}>
-                {generating ? "Generating…" : "Generate 8 prompts"}
+                {generating ? "Generating…" : "Generate prompts"}
               </Button>
             </div>
           </div>

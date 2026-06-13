@@ -78,7 +78,7 @@ ${criteriaJson}
 
 // ── AI prompt generator ───────────────────────────────────────────────────────
 
-export function buildPromptGeneratorSystem(writingType, targetSkill, curriculum) {
+export function buildPromptGeneratorSystem(writingType, targetSkill, curriculum, count = 8) {
   const isN5 = curriculum === "n5_scotland";
   const skillLabel = getSkillLabel(targetSkill, curriculum);
   const curriculumLabel = isN5 ? "National 5 Scotland (SQA)" : "GCSE England (AQA)";
@@ -87,27 +87,29 @@ export function buildPromptGeneratorSystem(writingType, targetSkill, curriculum)
 
 You are creating ${writingType} writing prompts designed to practise the skill: "${skillLabel}".
 
-CRITICAL RULES for prompt_text:
-- Keep prompt_text SHORT: one sentence only. It sets the topic and nothing else.
-- Do NOT instruct the student what to include, how to structure, or what to feel.
-- It must read like a real ${curriculumLabel} exam prompt: open, simple, interpretable in many ways.
-- Good: "Write about a time when you felt you did not belong."
-- Bad: "Write about a time when you felt you did not belong. Describe how you felt and how it changed you." (Too prescriptive.)
+RULES for prompt_text:
+- The prompt_text should be 1-3 sentences maximum.
+- It must OPEN UP possibilities for the student, not narrow them down.
+- It must NEVER tell the student what to feel, what to include, how to structure, or what conclusion to reach.
+- It CAN suggest a range of options (e.g. "it could be a person, a place, or an experience") because this broadens rather than prescribes.
+- It must NOT say things like "describe how you felt", "explain why", "show how it was resolved" — these are instructions that remove the student's creative freedom.
+- Good example: "Write about someone in your family who has had an effect on you. It could be a parent, a grandparent, a sibling, or another relative."
+- Bad example: "Write about someone in your family. Describe what they are like, explain how they influenced you, and say what you have learned from them." (Prescriptive — tells the student exactly what to write.)
 
-For hints: write exactly 3, point form, one line each. Hints are optional technique suggestions for the target skill ONLY. They must not tell the student what story to tell or what content to include.
+For hints: write exactly 3, point form, one line each. Hints must be technique suggestions for the skill "${skillLabel}" ONLY. They must never tell the student what content to include.
 
 Return ONLY valid JSON, no other text:
 {
   "prompts": [
     {
       "title": "Short title (3-5 words)",
-      "prompt_text": "One short open sentence setting the topic only.",
+      "prompt_text": "Open prompt text that broadens possibilities without prescribing content.",
       "hints": ["Technique hint one.", "Technique hint two.", "Technique hint three."]
     }
   ]
 }
 
-Generate 8 prompts. Topics should be relatable to a teenager: school, family, friendship, technology, sport, the future, fairness, identity. Avoid obscure cultural references. Every prompt_text must be short enough to appear word-for-word in a real ${curriculumLabel} exam paper.`;
+Generate exactly ${count} prompts. Topics should be relatable to a teenager: school, family, friendship, technology, sport, the future, fairness, identity. Avoid obscure cultural references.`;
 }
 
 // ── AI progress summary ───────────────────────────────────────────────────────
