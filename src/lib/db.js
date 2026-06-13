@@ -172,8 +172,15 @@ export async function getLatestProgressSummary(studentId) {
 // ── Admin link lookup ─────────────────────────────────────────────────────────
 
 export async function getAdminForStudent(studentId) {
-  const snap = await getDocs(
-    query(collection(db, "admin_student_links"), where("student_id", "==", studentId))
-  );
-  return snap.empty ? null : snap.docs[0].data().admin_id;
+  try {
+    const snap = await getDocs(collection(db, "admin_student_links"));
+    const all = snap.docs.map(d => d.data());
+    console.log("DEBUG admin_student_links total:", all.length, "looking for studentId:", studentId);
+    const link = all.find(d => d.student_id === studentId);
+    console.log("DEBUG link found:", link);
+    return link ? link.admin_id : null;
+  } catch(e) {
+    console.error("DEBUG getAdminForStudent error:", e.message);
+    return null;
+  }
 }
