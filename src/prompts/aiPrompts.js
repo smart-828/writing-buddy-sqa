@@ -78,7 +78,7 @@ ${criteriaJson}
 
 // ── AI prompt generator ───────────────────────────────────────────────────────
 
-export function buildPromptGeneratorSystem(writingType, targetSkill, curriculum, count = 8) {
+export function buildPromptGeneratorSystem(writingType, targetSkill, curriculum, count = 8, existingTitles = []) {
   const isN5 = curriculum === "n5_scotland";
   const skillLabel = getSkillLabel(targetSkill, curriculum);
   const curriculumLabel = isN5 ? "National 5 Scotland (SQA)" : "GCSE England (AQA)";
@@ -109,7 +109,9 @@ Return ONLY valid JSON, no other text:
   ]
 }
 
-Generate exactly ${count} prompts. Topics should be relatable to a teenager: school, family, friendship, technology, sport, the future, fairness, identity. Avoid obscure cultural references.`;
+Generate exactly ${count} prompts. Topics should be relatable to a teenager: school, family, friendship, technology, sport, the future, fairness, identity. Avoid obscure cultural references.
+
+${existingTitles.length > 0 ? 'IMPORTANT: The following prompt titles already exist and must NOT be repeated or closely paraphrased. Every new prompt must be on a distinctly different topic:\n' + existingTitles.map((t, i) => (i + 1) + '. ' + t).join('\n') : ''}`;
 }
 
 // ── AI progress summary ───────────────────────────────────────────────────────
