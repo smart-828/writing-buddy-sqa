@@ -19,8 +19,10 @@ export default function StudentWritingEditor() {
   const [showHints, setShowHints] = useState(true);
 
   const wordCount = text.trim() ? text.trim().split(/\s+/).length : 0;
-  const minWords = 50;
+  const minWords = 300;
+  const targetWords = 500;
   const ready = wordCount >= minWords;
+  const atTarget = wordCount >= targetWords;
 
   async function handleSubmit() {
     if (!ready) return;
@@ -101,14 +103,34 @@ export default function StudentWritingEditor() {
       {/* Top bar */}
       <div style={{ borderBottom: "1px solid #e5e7eb", padding: "0 1.5rem", display: "flex", alignItems: "center", justifyContent: "space-between", height: 56, flexShrink: 0, position: "sticky", top: 0, background: "white", zIndex: 10 }}>
         <button onClick={() => navigate(-1)} style={{ background: "none", border: "none", fontSize: 13, color: "#6b7280", cursor: "pointer", fontFamily: "inherit" }}>← Back</button>
-        <div style={{ fontSize: 13, color: wordCount < minWords ? "#f59e0b" : "#16a34a", fontWeight: 500 }}>
-          {wordCount} words {wordCount < minWords ? `— need ${minWords - wordCount} more` : "✓ Ready to submit"}
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <div style={{
+            fontSize: 13, fontWeight: 500,
+            color: wordCount < minWords ? "#9ca3af" : atTarget ? "#16a34a" : "#f59e0b"
+          }}>
+            {wordCount} / {targetWords} words
+          </div>
+          {/* Progress bar */}
+          <div style={{ width: 80, height: 6, background: "#e5e7eb", borderRadius: 999, overflow: "hidden" }}>
+            <div style={{
+              height: "100%", borderRadius: 999,
+              width: `${Math.min((wordCount / targetWords) * 100, 100)}%`,
+              background: wordCount < minWords ? "#e5e7eb" : atTarget ? "#16a34a" : "#f59e0b",
+              transition: "width 0.3s ease"
+            }} />
+          </div>
+          {atTarget && <span style={{ fontSize: 12, color: "#16a34a" }}>✓ Great length!</span>}
+          {ready && !atTarget && <span style={{ fontSize: 12, color: "#f59e0b" }}>{targetWords - wordCount} more for full marks</span>}
         </div>
         <button onClick={handleSubmit} disabled={!ready || loading}
           style={{
-            padding: "8px 20px", background: ready && !loading ? "#2563eb" : "#e5e7eb",
-            border: "none", borderRadius: 8, color: ready && !loading ? "white" : "#9ca3af",
-            fontSize: 14, fontWeight: 500, cursor: ready && !loading ? "pointer" : "not-allowed", fontFamily: "inherit"
+            padding: "8px 20px",
+            background: loading ? "#e5e7eb" : !ready ? "#e5e7eb" : atTarget ? "#16a34a" : "#f59e0b",
+            border: "none", borderRadius: 8,
+            color: ready && !loading ? "white" : "#9ca3af",
+            fontSize: 14, fontWeight: 500,
+            cursor: ready && !loading ? "pointer" : "not-allowed",
+            fontFamily: "inherit"
           }}>
           {loading ? "Getting feedback…" : "Submit for feedback"}
         </button>

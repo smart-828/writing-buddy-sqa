@@ -165,7 +165,7 @@ export default function AdminStudentDetail() {
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                     <div>
                       <div style={{ fontSize: 14, fontWeight: 500, color: "#111", marginBottom: 4 }}>
-                        {s.writing_type === "creative" ? "Creative" : "Discursive"} · {s.word_count} words
+                        {s.prompt_title || (s.writing_type === "creative" ? "Creative" : "Discursive")} · {s.word_count} words
                       </div>
                       <div style={{ fontSize: 13, color: "#6b7280" }}>{formatDate(s.created_at)}</div>
                     </div>
