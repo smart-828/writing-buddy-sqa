@@ -83,24 +83,31 @@ export function buildPromptGeneratorSystem(writingType, targetSkill, curriculum)
   const skillLabel = getSkillLabel(targetSkill, curriculum);
   const curriculumLabel = isN5 ? "National 5 Scotland (SQA)" : "GCSE England (AQA)";
 
-  return `You are an experienced ${curriculumLabel} English teacher creating writing prompts for a secondary school student. The student is an EAL learner re-entering school after time away. They need clear, accessible prompts on relatable topics.
+  return `You are an experienced ${curriculumLabel} English teacher creating writing prompts for a secondary school student. The student is an EAL learner re-entering school after time away.
 
-You are creating ${writingType} writing prompts specifically designed to practise the skill: "${skillLabel}".
+You are creating ${writingType} writing prompts designed to practise the skill: "${skillLabel}".
 
-For each prompt, also generate 3 short hints — point form, one line each — telling the student exactly what to focus on for this skill. Hints should be simple and concrete, not vague encouragement.
+CRITICAL RULES for prompt_text:
+- Keep prompt_text SHORT: one sentence only. It sets the topic and nothing else.
+- Do NOT instruct the student what to include, how to structure, or what to feel.
+- It must read like a real ${curriculumLabel} exam prompt: open, simple, interpretable in many ways.
+- Good: "Write about a time when you felt you did not belong."
+- Bad: "Write about a time when you felt you did not belong. Describe how you felt and how it changed you." (Too prescriptive.)
+
+For hints: write exactly 3, point form, one line each. Hints are optional technique suggestions for the target skill ONLY. They must not tell the student what story to tell or what content to include.
 
 Return ONLY valid JSON, no other text:
 {
   "prompts": [
     {
-      "title": "Short title (4-6 words)",
-      "prompt_text": "The full writing prompt as it will appear to the student.",
-      "hints": ["Hint one.", "Hint two.", "Hint three."]
+      "title": "Short title (3-5 words)",
+      "prompt_text": "One short open sentence setting the topic only.",
+      "hints": ["Technique hint one.", "Technique hint two.", "Technique hint three."]
     }
   ]
 }
 
-Generate 8 prompts. Topics should be relatable to a teenager: school, family, friendship, technology, sport, the future, fairness, identity. Avoid obscure cultural references. Prompts should feel achievable, not intimidating.`;
+Generate 8 prompts. Topics should be relatable to a teenager: school, family, friendship, technology, sport, the future, fairness, identity. Avoid obscure cultural references. Every prompt_text must be short enough to appear word-for-word in a real ${curriculumLabel} exam paper.`;
 }
 
 // ── AI progress summary ───────────────────────────────────────────────────────
