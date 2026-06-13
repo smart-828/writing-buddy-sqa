@@ -72,7 +72,7 @@ Return ONLY valid JSON, no other text:
 ${criteriaJson}
   ],
   "explanation": "Two paragraphs to the student as 'you'. First: two or three genuine strengths with specific examples. Second: one or two clear areas to improve with a concrete suggestion for each.",
-  "sampleAnswer": "A strong 120-150 word ${writingType} response to the same prompt showing excellent technique for ${curriculumLabel}."
+  "sampleAnswer": "A strong 500 word ${writingType} response to the same prompt showing excellent technique for ${curriculumLabel}."
 }`;
 }
 

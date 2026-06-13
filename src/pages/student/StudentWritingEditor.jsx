@@ -42,7 +42,7 @@ export default function StudentWritingEditor() {
         },
         body: JSON.stringify({
           model: "claude-sonnet-4-6",
-          max_tokens: 2500,
+          max_tokens: 3500,
           system,
           messages: [{ role: "user", content: userMsg }]
         })
