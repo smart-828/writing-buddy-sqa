@@ -21,7 +21,7 @@ export default function StudentWritingEditor() {
   const wordCount = text.trim() ? text.trim().split(/\s+/).length : 0;
   const minWords = 300;
   const targetWords = 500;
-  const ready = wordCount >= minWords;
+  const ready = wordCount > 0;
   const atTarget = wordCount >= targetWords;
 
   async function handleSubmit() {
@@ -115,21 +115,22 @@ export default function StudentWritingEditor() {
             <div style={{
               height: "100%", borderRadius: 999,
               width: `${Math.min((wordCount / targetWords) * 100, 100)}%`,
-              background: wordCount < minWords ? "#e5e7eb" : atTarget ? "#16a34a" : "#f59e0b",
+              background: atTarget ? "#16a34a" : wordCount >= minWords ? "#f59e0b" : "#9ca3af",
               transition: "width 0.3s ease"
             }} />
           </div>
           {atTarget && <span style={{ fontSize: 12, color: "#16a34a" }}>✓ Great length!</span>}
-          {ready && !atTarget && <span style={{ fontSize: 12, color: "#f59e0b" }}>{targetWords - wordCount} more for full marks</span>}
+          {!atTarget && wordCount >= minWords && <span style={{ fontSize: 12, color: "#f59e0b" }}>{targetWords - wordCount} more for full marks</span>}
+          {wordCount > 0 && wordCount < minWords && <span style={{ fontSize: 12, color: "#9ca3af" }}>{minWords - wordCount} more recommended</span>}
         </div>
-        <button onClick={handleSubmit} disabled={!ready || loading}
+        <button onClick={handleSubmit} disabled={loading}
           style={{
             padding: "8px 20px",
-            background: loading ? "#e5e7eb" : !ready ? "#e5e7eb" : atTarget ? "#16a34a" : "#f59e0b",
+            background: loading ? "#e5e7eb" : atTarget ? "#16a34a" : wordCount >= minWords ? "#f59e0b" : "#9ca3af",
             border: "none", borderRadius: 8,
-            color: ready && !loading ? "white" : "#9ca3af",
+            color: loading ? "#9ca3af" : "white",
             fontSize: 14, fontWeight: 500,
-            cursor: ready && !loading ? "pointer" : "not-allowed",
+            cursor: loading ? "not-allowed" : "pointer",
             fontFamily: "inherit"
           }}>
           {loading ? "Getting feedback…" : "Submit for feedback"}
