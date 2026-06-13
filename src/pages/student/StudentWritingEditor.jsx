@@ -40,7 +40,7 @@ export default function StudentWritingEditor() {
         },
         body: JSON.stringify({
           model: "claude-sonnet-4-6",
-          max_tokens: 1500,
+          max_tokens: 2500,
           system,
           messages: [{ role: "user", content: userMsg }]
         })
@@ -49,7 +49,19 @@ export default function StudentWritingEditor() {
       if (!res.ok) throw new Error("AI feedback failed. Please try again.");
       const data = await res.json();
       const raw = data.content.map(b => b.text || "").join("").replace(/```json|```/g, "").trim();
-      const feedback = JSON.parse(raw);
+      let feedback;
+      try {
+        feedback = JSON.parse(raw);
+      } catch(parseErr) {
+        // Try to extract partial JSON if response was cut off
+        const match = raw.match(/(\{[\s\S]*"criteria"[\s\S]*"explanation"[\s\S]*)/);
+        if (match) {
+          const partial = match[1].replace(/,\s*$/, '') + ',"sampleAnswer":"The response was too long to generate a sample answer. Please try again."}';
+          try { feedback = JSON.parse(partial); } catch(e2) { throw new Error("AI response was too long. Please try again."); }
+        } else {
+          throw new Error("AI response was too long. Please try again.");
+        }
+      }
 
       // Normalise score to 20
       const rawTotal = feedback.criteria.reduce((s, c) => s + c.score, 0);
@@ -86,7 +98,7 @@ export default function StudentWritingEditor() {
   return (
     <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", background: "#fff", fontFamily: "system-ui, sans-serif" }}>
       {/* Top bar */}
-      <div style={{ borderBottom: "1px solid #e5e7eb", padding: "0 1.5rem", display: "flex", alignItems: "center", justifyContent: "space-between", height: 56, flexShrink: 0 }}>
+      <div style={{ borderBottom: "1px solid #e5e7eb", padding: "0 1.5rem", display: "flex", alignItems: "center", justifyContent: "space-between", height: 56, flexShrink: 0, position: "sticky", top: 0, background: "white", zIndex: 10 }}>
         <button onClick={() => navigate(-1)} style={{ background: "none", border: "none", fontSize: 13, color: "#6b7280", cursor: "pointer", fontFamily: "inherit" }}>← Back</button>
         <div style={{ fontSize: 13, color: wordCount < minWords ? "#f59e0b" : "#16a34a", fontWeight: 500 }}>
           {wordCount} words {wordCount < minWords ? `(write at least ${minWords})` : "✓"}
@@ -102,7 +114,7 @@ export default function StudentWritingEditor() {
       </div>
 
       {/* Prompt + hints */}
-      <div style={{ padding: "1.25rem 1.5rem", background: "#f9fafb", borderBottom: "1px solid #e5e7eb", flexShrink: 0 }}>
+      <div style={{ padding: "1.25rem 1.5rem", background: "#f9fafb", borderBottom: "1px solid #e5e7eb", flexShrink: 0, position: "sticky", top: 56, zIndex: 9 }}>
         <div style={{ fontSize: 12, fontWeight: 600, color: "#9ca3af", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 6 }}>Your prompt</div>
         <div style={{ fontSize: 15, color: "#111", lineHeight: 1.6, marginBottom: prompt.hints?.length ? 10 : 0 }}>{prompt.prompt_text}</div>
         {prompt.hints?.length > 0 && (
@@ -128,8 +140,28 @@ export default function StudentWritingEditor() {
         style={{
           flex: 1, width: "100%", padding: "1.5rem", border: "none", outline: "none",
           resize: "none", fontSize: 16, lineHeight: 1.8, color: "#111",
-          fontFamily: "Georgia, serif", boxSizing: "border-box", minHeight: "calc(100vh - 200px)"
+          fontFamily: "Georgia, serif", boxSizing: "border-box", minHeight: "calc(100vh - 200px)",
+          paddingBottom: "4rem"
         }} />
+      {/* Floating word count + submit at bottom */}
+      <div style={{
+        position: "fixed", bottom: 0, left: 0, right: 0,
+        background: "white", borderTop: "1px solid #e5e7eb",
+        padding: "0.75rem 1.5rem", display: "flex",
+        alignItems: "center", justifyContent: "space-between", zIndex: 10
+      }}>
+        <div style={{ fontSize: 14, color: wordCount < minWords ? "#f59e0b" : "#16a34a", fontWeight: 500 }}>
+          {wordCount} words {wordCount < minWords ? `(need ${minWords - wordCount} more)` : "✓ Ready to submit"}
+        </div>
+        <button onClick={handleSubmit} disabled={!ready || loading}
+          style={{
+            padding: "8px 20px", background: ready && !loading ? "#2563eb" : "#e5e7eb",
+            border: "none", borderRadius: 8, color: ready && !loading ? "white" : "#9ca3af",
+            fontSize: 14, fontWeight: 500, cursor: ready && !loading ? "pointer" : "not-allowed", fontFamily: "inherit"
+          }}>
+          {loading ? "Getting feedback…" : "Submit for feedback"}
+        </button>
+      </div>
 
       {error && (
         <div style={{ padding: "0.75rem 1.5rem", background: "#fef2f2", borderTop: "1px solid #fecaca", fontSize: 13, color: "#dc2626" }}>
