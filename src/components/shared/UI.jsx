@@ -21,9 +21,9 @@ export function Button({ children, onClick, disabled, variant = "default", fullW
   );
 }
 
-export function Card({ children, style }) {
+export function Card({ children, style, onClick }) {
   return (
-    <div style={{
+    <div onClick={onClick} style={{
       background: "white", border: "1px solid #e5e7eb",
       borderRadius: 12, padding: "1.25rem",
       ...style
