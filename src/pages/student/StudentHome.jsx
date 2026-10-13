@@ -19,7 +19,7 @@ export default function StudentHome() {
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <button onClick={() => navigate("/student/progress")} style={{ background: "none", border: "none", fontSize: 13, color: "#2563eb", cursor: "pointer", fontFamily: "inherit" }}>
-            My progress
+            My writing & progress
           </button>
           <button onClick={() => signOut(auth)} style={{ background: "none", border: "none", fontSize: 13, color: "#6b7280", cursor: "pointer", fontFamily: "inherit" }}>
             Sign out

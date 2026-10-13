@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from "recharts";
-import { getProfile, getStudentSubmissions, getLatestProgressSummary, saveProgressSummary } from "../../lib/db";
+import { getProfile, getStudentSubmissions, getLatestProgressSummary, saveProgressSummary, getPrompt } from "../../lib/db";
+import { downloadSubmissionPdf } from "../../lib/submissionPdf";
 import { buildProgressPrompt } from "../../prompts/aiPrompts";
 import { Card, Button, SectionLabel, Badge, Stars, Spinner, EmptyState } from "../../components/shared/UI";
 
@@ -16,6 +17,24 @@ export default function AdminStudentDetail() {
   const [loading, setLoading] = useState(true);
   const [generatingSummary, setGeneratingSummary] = useState(false);
   const [selectedSubmission, setSelectedSubmission] = useState(null);
+  const [pdfBusyId, setPdfBusyId] = useState(null);
+
+  async function handleDownloadPdf(submission) {
+    setPdfBusyId(submission.id);
+    try {
+      const prompt = await getPrompt(submission.prompt_id);
+      downloadSubmissionPdf({
+        submission,
+        studentName: student?.display_name || "",
+        promptText: prompt?.prompt_text || ""
+      });
+    } catch (e) {
+      console.error(e);
+      alert("Sorry, the PDF could not be created. Please try again.");
+    } finally {
+      setPdfBusyId(null);
+    }
+  }
 
   useEffect(() => {
     async function load() {
@@ -179,6 +198,11 @@ export default function AdminStudentDetail() {
 
                 {selectedSubmission?.id === s.id && (
                   <Card style={{ borderTopLeftRadius: 0, borderTopRightRadius: 0, borderTop: "1px solid #f3f4f6" }}>
+                    <div style={{ display: "flex", justifyContent: "flex-end", marginBottom: "1rem" }}>
+                      <Button small variant="primary" onClick={() => handleDownloadPdf(s)} disabled={pdfBusyId === s.id}>
+                        {pdfBusyId === s.id ? "Preparing PDF…" : "⬇ Download PDF"}
+                      </Button>
+                    </div>
                     <SectionLabel>Student's writing</SectionLabel>
                     <div style={{ fontSize: 14, lineHeight: 1.75, color: "#374151", whiteSpace: "pre-wrap", marginBottom: "1.5rem", background: "#f9fafb", padding: "1rem", borderRadius: 8 }}>
                       {s.response_text}

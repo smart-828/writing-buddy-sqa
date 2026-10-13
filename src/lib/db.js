@@ -49,6 +49,18 @@ export async function getStudentPrompts(adminId, writingType) {
   return all.filter(p => p.is_active === true && p.type === writingType);
 }
 
+// Read one prompt (used to show the full task question when reviewing past work).
+// Returns null if the prompt has been deleted.
+export async function getPrompt(promptId) {
+  if (!promptId) return null;
+  try {
+    const snap = await getDoc(doc(db, "writing_prompts", promptId));
+    return snap.exists() ? { id: snap.id, ...snap.data() } : null;
+  } catch (e) {
+    return null;
+  }
+}
+
 export async function addPrompt(adminId, { title, promptText, type, targetSkill, hints }) {
   return addDoc(collection(db, "writing_prompts"), {
     created_by_admin_id: adminId,

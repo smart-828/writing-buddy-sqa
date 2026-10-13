@@ -58,13 +58,19 @@ export default function StudentProgress() {
     return { arrow: "→", color: "#6b7280" };
   }
 
+  const formatDate = ts => {
+    if (!ts) return "";
+    const d = ts.toDate ? ts.toDate() : new Date(ts);
+    return d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+  };
+
   if (loading) return <Spinner />;
 
   return (
     <div style={{ minHeight: "100vh", background: "#f9fafb", fontFamily: "system-ui, sans-serif" }}>
       <div style={{ background: "white", borderBottom: "1px solid #e5e7eb", padding: "0 1.5rem", display: "flex", alignItems: "center", height: 56 }}>
         <button onClick={() => navigate("/student")} style={{ background: "none", border: "none", fontSize: 13, color: "#6b7280", cursor: "pointer", fontFamily: "inherit", marginRight: 12 }}>← Back</button>
-        <span style={{ fontWeight: 600, color: "#111" }}>My progress</span>
+        <span style={{ fontWeight: 600, color: "#111" }}>My writing & progress</span>
       </div>
 
       <div style={{ maxWidth: 700, margin: "0 auto", padding: "2rem 1.5rem" }}>
@@ -88,6 +94,28 @@ export default function StudentProgress() {
                 </div>
               ))}
             </div>
+
+            {/* My writing — every past essay, tap to review */}
+            <Card style={{ marginBottom: "1.5rem" }}>
+              <SectionLabel>My writing</SectionLabel>
+              <div style={{ display: "grid", gap: 8 }}>
+                {submissions.map(s => (
+                  <div key={s.id} onClick={() => navigate(`/student/feedback/${s.id}`)}
+                    style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, padding: "0.75rem 1rem", border: "1px solid #e5e7eb", borderRadius: 8, cursor: "pointer", background: "#fff" }}>
+                    <div style={{ minWidth: 0 }}>
+                      <div style={{ fontSize: 14, fontWeight: 500, color: "#111", marginBottom: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                        {s.prompt_title || (s.writing_type === "creative" ? "Creative writing" : "Discursive writing")}
+                      </div>
+                      <div style={{ fontSize: 12, color: "#6b7280" }}>{formatDate(s.created_at)} · {s.word_count} words</div>
+                    </div>
+                    <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
+                      <span style={{ fontSize: 14, fontWeight: 500, color: "#374151" }}>{s.score_total}/20</span>
+                      <span style={{ color: "#9ca3af" }}>›</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </Card>
 
             {/* Trend chart */}
             {submissions.length >= 3 ? (
